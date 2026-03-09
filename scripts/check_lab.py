@@ -18,7 +18,7 @@ NODES = [
     {"name": "pe1", "host": "clab-pysros-lab-pe1"},
     {"name": "pe2", "host": "clab-pysros-lab-pe2"},
 ]
-CREDS = {"username": "admin", "password": "admin", "hostkey_verify": False}
+CREDS = {"username": "admin", "password": "NokiaSros1!", "hostkey_verify": False}
 
 SEPARATOR = "=" * 62
 
