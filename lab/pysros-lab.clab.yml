@@ -1,0 +1,19 @@
+name: pysros-lab
+topology:
+  kinds:
+    nokia_srsim:
+      image: localhost/nokia/srsim:25.10.R1
+      license: ../../sros_25-10.txt
+  nodes:
+    pe1:
+      kind: nokia_srsim
+      type: sr-1s
+      mgmt-ipv4: 172.20.20.11
+      startup-config: configs/pe1.partial.cfg
+    pe2:
+      kind: nokia_srsim
+      type: sr-1s
+      mgmt-ipv4: 172.20.20.12
+      startup-config: configs/pe2.partial.cfg
+  links:
+    - endpoints: ["pe1:1/1/c1/1", "pe2:1/1/c1/1"]

@@ -1,0 +1,120 @@
+=======================================================
+  pySROS — Interactive Mode Commands
+  No Dev? No Problem. pySROS for Network Engineers
+=======================================================
+
+--- STEP 1: Activate your environment ---
+
+source pysros-env/bin/activate
+
+
+--- STEP 2: Enter interactive mode ---
+
+python3
+
+
+--- STEP 3: Import & Connect ---
+
+from pysros.management import connect
+
+conn = connect(host="clab-srexperts-pe1",
+               username="admin",
+               password="admin",
+               hostkey_verify=False)
+
+
+--- STEP 4: Your first queries ---
+
+conn.running.get("/nokia-conf:configure/system/name")
+
+conn.running.get("/nokia-conf:configure/system/location")
+
+conn.running.get("/nokia-conf:configure/system/contact")
+
+
+--- STEP 5: Store a result in a variable ---
+
+name = conn.running.get("/nokia-conf:configure/system/name")
+print(name)
+
+
+--- STEP 6: Drilling into a specific BGP neighbor ---
+
+# Get all neighbors into a variable
+neighbors = conn.running.get("/nokia-state:state/router[router-name=Base]/bgp/neighbor")
+
+# Index by IP to get one specific neighbor
+n = neighbors["192.168.1.1"]
+
+# Check the top-level keys first
+for key in n.keys():
+    print(key)
+# Output: ip-address   statistics   graceful-restart
+
+# session-state is NOT at the top level — it lives inside
+# the statistics sub-container:
+n["statistics"]["session-state"].data     # e.g. 'Established'
+n["statistics"]["last-state"].data        # e.g. 'Active'
+n["statistics"]["last-event"].data        # e.g. 'recvOpen'
+n["statistics"]["received-paths"].data    # e.g. 1
+n["statistics"]["peer-port"].data         # e.g. 179
+
+# If you're not sure what's inside a sub-container, dump it:
+n["statistics"]
+# or check its keys:
+for key in n["statistics"].keys():
+    print(key)
+
+# Approach 2 — full YANG path directly to session-state
+# (quotes around values in [key=value] are required!)
+conn.running.get(
+    '/nokia-state:state/router[router-name="Base"]'
+    '/bgp/neighbor[ip-address="192.168.1.1"]'
+    '/statistics/session-state'
+)
+
+# Note: [key=value] in the path selects one entry from a YANG
+# list — same idea as a table row with a primary key.
+# Works for any list: port, neighbor, interface, etc.
+
+# General rule: if .keys() doesn't show what you expect,
+# check one level deeper — SR OS groups state data into
+# sub-containers like statistics, graceful-restart, etc.
+
+
+--- STEP 7: More paths to explore ---
+
+# Software version (state data)
+conn.running.get("/nokia-state:state/system/version/version-number")
+
+# All ports (returns a container — iterate over it)
+ports = conn.running.get("/nokia-state:state/port")
+for port_id, data in ports.items():
+    print(port_id)
+
+# BGP neighbors
+conn.running.get("/nokia-state:state/router[router-name=Base]/bgp/neighbor")
+
+
+--- STEP 8: Clean up ---
+
+conn.disconnect()
+
+exit()
+
+
+=======================================================
+  QUICK REFERENCE — YANG Path Structure
+=======================================================
+
+  /nokia-conf:configure/system/name
+   ^^^^^^^^^^^^^^^  ^^^^^^^^^  ^^^^
+   Module prefix    Container  Leaf
+
+  nokia-conf  = configuration data
+  nokia-state = live/operational state data
+
+=======================================================
+  GOLDEN RULE: always use .keys() before accessing
+  fields — never assume the field name exists!
+=======================================================

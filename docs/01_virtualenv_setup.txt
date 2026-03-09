@@ -1,0 +1,154 @@
+=======================================================
+  pySROS — Setting Up Your Virtual Environment
+  No Dev? No Problem. pySROS for Network Engineers
+=======================================================
+
+REQUIREMENTS
+  - Linux (Ubuntu 20.04+ recommended)
+  - Python 3.6 or higher
+  - Internet access (to install pySROS via pip)
+
+-------------------------------------------------------
+  STEP 1 — Check Python is installed
+-------------------------------------------------------
+
+  python3 --version
+
+  Expected output:
+    Python 3.10.12   (or any 3.6+)
+
+  If Python is not installed:
+    sudo apt update && sudo apt install python3 python3-pip -y
+
+
+-------------------------------------------------------
+  STEP 2 — Create the virtual environment
+-------------------------------------------------------
+
+  python3 -m venv pysros-env
+
+  This creates a folder called pysros-env/ in your
+  current directory. It contains its own isolated
+  Python installation — nothing else on your system
+  is affected.
+
+  Tip: run this once per project. You don't need to
+  recreate it every time, only activate it.
+
+
+-------------------------------------------------------
+  STEP 3 — Activate the virtual environment
+-------------------------------------------------------
+
+  source pysros-env/bin/activate
+
+  Your prompt will change to show the environment name:
+
+    (pysros-env) user@host:~$
+     ^^^^^^^^^^^^
+     You are now inside the sandbox
+
+  Everything you install from this point stays inside
+  pysros-env/ and won't affect your system Python.
+
+
+-------------------------------------------------------
+  STEP 4 — Install pySROS
+-------------------------------------------------------
+
+  pip install pysros
+
+  This downloads and installs pySROS and its
+  dependencies into your virtual environment.
+  You only need to do this once.
+
+  Verify the install was successful:
+
+    pip show pysros
+
+  Expected output (version may differ):
+    Name: pysros
+    Version: 23.x.x
+    Summary: Nokia SR OS Python API
+    ...
+
+
+-------------------------------------------------------
+  STEP 5 — You're ready
+-------------------------------------------------------
+
+  Enter Python interactive mode:
+
+    python3
+
+  You should see the >>> prompt:
+
+    Python 3.10.12 (default ...)
+    Type "help" for more information.
+    >>>
+
+  Type exit() or press Ctrl+D to leave at any time.
+
+
+-------------------------------------------------------
+  DAILY USAGE — After the first setup
+-------------------------------------------------------
+
+  Each time you open a new terminal, just activate:
+
+    source pysros-env/bin/activate
+
+  Then run your scripts or enter interactive mode:
+
+    python3 my_script.py
+    python3
+
+
+-------------------------------------------------------
+  DEACTIVATING — When you're done
+-------------------------------------------------------
+
+  deactivate
+
+  Your prompt returns to normal. The environment and
+  everything installed in it is still there, just
+  inactive until you source it again.
+
+
+-------------------------------------------------------
+  TROUBLESHOOTING
+-------------------------------------------------------
+
+  "python3: command not found"
+    -> Install Python: sudo apt install python3
+
+  "pip: command not found"
+    -> Install pip: sudo apt install python3-pip
+
+  "No module named pysros" when running a script
+    -> Your venv is not active. Run:
+       source pysros-env/bin/activate
+
+  "Permission denied" on source command
+    -> Make sure you created the venv first (Step 2)
+
+  Want to start fresh? Delete and recreate:
+    rm -rf pysros-env
+    python3 -m venv pysros-env
+    source pysros-env/bin/activate
+    pip install pysros
+
+
+=======================================================
+  SUMMARY — All commands in order
+=======================================================
+
+  python3 --version                    # check Python
+  python3 -m venv pysros-env           # create venv
+  source pysros-env/bin/activate       # activate
+  pip install pysros                   # install pySROS
+  pip show pysros                      # verify install
+  python3                              # enter >>> mode
+  deactivate                           # exit venv
+
+=======================================================

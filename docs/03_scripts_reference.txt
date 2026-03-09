@@ -1,0 +1,244 @@
+=======================================================
+  pySROS — Sample Scripts Reference
+  No Dev? No Problem. pySROS for Network Engineers
+=======================================================
+
+All scripts use Containerlab node names.
+Update HOST = "..." to match your topology.
+
+-------------------------------------------------------
+  INTERACTIVE — Drilling Into a Specific BGP Neighbor
+  (>>> mode, not a script)
+-------------------------------------------------------
+
+# Get all neighbors first
+neighbors = conn.running.get(
+    "/nokia-state:state/router[router-name=Base]/bgp/neighbor"
+)
+
+# --- Approach 1: index by IP, drill into sub-containers ---
+n = neighbors["192.168.1.1"]
+
+# Check top-level keys first:
+for key in n.keys():
+    print(key)
+# Output: ip-address   statistics   graceful-restart
+
+# session-state lives inside the statistics sub-container:
+n["statistics"]["session-state"].data     # e.g. 'Established'
+n["statistics"]["last-state"].data        # e.g. 'Active'
+n["statistics"]["last-event"].data        # e.g. 'recvOpen'
+n["statistics"]["received-paths"].data    # e.g. 1
+
+# Explore what else is in statistics:
+for key in n["statistics"].keys():
+    print(key)
+
+
+# --- Approach 2: direct YANG path ---
+# Quotes around key values are required!
+
+conn.running.get(
+    '/nokia-state:state/router[router-name="Base"]'
+    '/bgp/neighbor[ip-address="192.168.1.1"]'
+    '/statistics/session-state'
+)
+
+# The [key=value] syntax selects one entry from a YANG list.
+# Works for any list: port, neighbor, interface, etc.
+# Examples:
+#   /port[port-id="1/1/1"]/oper-state
+#   /bgp/neighbor[ip-address="10.0.0.1"]/statistics/session-state
+#   /router[router-name="Base"]/bgp/neighbor[...]
+
+# Key lesson: SR OS groups state into sub-containers.
+# If a field isn't at the top level, check one level deeper.
+
+
+-------------------------------------------------------
+  SCRIPT 01 — Interface Status  (out-of-box)
+  File: 01_interface_status.py
+-------------------------------------------------------
+
+from pysros.management import connect
+
+HOST = "clab-srexperts-pe1"
+
+def main():
+    conn = connect(host=HOST, username="admin",
+                   password="admin", hostkey_verify=False)
+
+    ports = conn.running.get("/nokia-state:state/port")
+
+    print(f"{'PORT':<18} {'ADMIN':<10} {'OPER':<10}")
+    print("-" * 40)
+
+    for port_id, port_data in sorted(ports.items()):
+        admin = port_data.get("admin-state", None)
+        oper  = port_data.get("oper-state",  None)
+        flag  = " <- DOWN" if admin.data == "up" and oper.data == "down" else ""
+        print(f"{port_id:<18} {admin.data:<10} {oper.data:<10}{flag}")
+
+    conn.disconnect()
+
+if __name__ == "__main__":
+    main()
+
+
+-------------------------------------------------------
+  SCRIPT 02 — BGP Neighbor State  (out-of-box)
+  File: 02_bgp_neighbors.py
+-------------------------------------------------------
+
+from pysros.management import connect
+
+HOST     = "clab-srexperts-pe1"
+BGP_PATH = ("/nokia-state:state/router[router-name=Base]"
+            "/bgp/neighbor")
+
+def main():
+    conn = connect(host=HOST, username="admin",
+                   password="admin", hostkey_verify=False)
+
+    neighbors = conn.running.get(BGP_PATH)
+
+    print(f"{'NEIGHBOR':<22} {'STATE':<18} {'PEER-AS':<12}")
+    print("-" * 55)
+
+    for ip, data in sorted(neighbors.items()):
+        # session-state lives inside the statistics sub-container
+        stats   = data.get("statistics", None)
+        peer_as = data.get("peer-as",    None)
+        session = stats["session-state"].data if stats and "session-state" in stats else "n/a"
+        flag    = " <- CHECK" if session.lower() != "established" else ""
+        print(f"{str(ip):<22} {session:<18} {str(peer_as.data) if peer_as else 'n/a':<12}{flag}")
+
+    conn.disconnect()
+
+if __name__ == "__main__":
+    main()
+
+
+-------------------------------------------------------
+  SCRIPT 03 — On-Box Interface Check  (on-box)
+  File: 03_onbox_interface_check.py
+  Deploy: scp 03_onbox_interface_check.py admin@clab-srexperts-pe1:/cf3:/scripts/
+  Run on SR OS: pyexec /cf3:/scripts/03_onbox_interface_check.py
+-------------------------------------------------------
+
+from pysros.management import connect
+from pysros.pprint import Table
+
+def main():
+    conn = connect()   # <-- on-box: no arguments needed
+
+    ports = conn.running.get("/nokia-state:state/port")
+
+    cols  = [("Port", 18), ("Admin State", 14), ("Oper State", 14)]
+    table = Table("Interface Status", columns=cols)
+
+    for port_id, port_data in sorted(ports.items()):
+        admin = port_data.get("admin-state", None)
+        oper  = port_data.get("oper-state",  None)
+        table.add(str(port_id), admin.data, oper.data)
+
+    table.print()
+    conn.disconnect()
+
+if __name__ == "__main__":
+    main()
+
+
+-------------------------------------------------------
+  SCRIPT 04 — Set Port Descriptions  (config change)
+  File: 04_set_description.py
+-------------------------------------------------------
+
+from pysros.management import connect
+
+HOST = "clab-srexperts-pe1"
+
+PORT_DESCRIPTIONS = {
+    "1/1/1": "Uplink to Core-01",
+    "1/1/2": "Peering Link - AS65001",
+    "1/1/3": "Customer - ACME Corp",
+}
+
+def main():
+    conn = connect(host=HOST, username="admin",
+                   password="admin", hostkey_verify=False)
+
+    for port_id, description in PORT_DESCRIPTIONS.items():
+        path = (f"/nokia-conf:configure/port[port-id={port_id}]"
+                f"/description")
+        conn.candidate.set(path, description)
+        print(f"  Staged: {port_id} -> '{description}'")
+
+    conn.candidate.commit()
+    print("Config committed successfully.")
+    conn.disconnect()
+
+if __name__ == "__main__":
+    main()
+
+
+-------------------------------------------------------
+  SCRIPT 05 — Bulk Config (NTP) Across All Nodes  (real-world)
+  File: 05_bulk_config.py
+-------------------------------------------------------
+
+from pysros.management import connect
+
+NODES = [
+    {"host": "clab-srexperts-pe1", "name": "PE1"},
+    {"host": "clab-srexperts-pe2", "name": "PE2"},
+    {"host": "clab-srexperts-p1",  "name": "P1"},
+]
+NTP_SERVER_IP = "10.0.0.1"
+
+def apply_ntp_server(conn, ntp_ip):
+    path = (f"/nokia-conf:configure/system/time/ntp"
+            f"/server[ip-address={ntp_ip}]/prefer")
+    conn.candidate.set(path, True)
+    conn.candidate.commit()
+
+def main():
+    print(f"Applying NTP config ({NTP_SERVER_IP}) to {len(NODES)} nodes...\n")
+    for node in NODES:
+        try:
+            conn = connect(host=node["host"], username="admin",
+                           password="admin", hostkey_verify=False)
+            apply_ntp_server(conn, NTP_SERVER_IP)
+            conn.disconnect()
+            print(f"  {node['name']:<6} OK")
+        except Exception as e:
+            print(f"  {node['name']:<6} FAILED — {e}")
+
+if __name__ == "__main__":
+    main()
+
+
+=======================================================
+  QUICK REFERENCE — Key Operations
+=======================================================
+
+  READ config/state:
+    conn.running.get("/path/to/yang/leaf")
+
+  WRITE to candidate:
+    conn.candidate.set("/path/to/yang/leaf", value)
+
+  COMMIT candidate to running:
+    conn.candidate.commit()
+
+  DISCONNECT:
+    conn.disconnect()
+
+  ON-BOX connect (no arguments):
+    conn = connect()
+
+  OUT-OF-BOX connect:
+    conn = connect(host="...", username="...",
+                   password="...", hostkey_verify=False)
+
+=======================================================
