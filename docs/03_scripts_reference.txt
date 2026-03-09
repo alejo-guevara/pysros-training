@@ -241,4 +241,72 @@ if __name__ == "__main__":
     conn = connect(host="...", username="...",
                    password="...", hostkey_verify=False)
 
+
+=======================================================
+  GOLDEN RULES — YANG Path & set() Gotchas
+  (learned the hard way on SR OS 25.10 / SR-1s)
+=======================================================
+
+  RULE 1 — Always quote key values in paths
+  -----------------------------------------
+  Key values containing slashes, dots, or spaces MUST be
+  quoted inside the predicate brackets, or the path parser
+  will misinterpret them as path separators.
+
+    # WRONG — slashes in port-id break the path
+    f"/nokia-conf:configure/port[port-id={port_id}]/description"
+
+    # CORRECT — single quotes protect the value
+    f"/nokia-conf:configure/port[port-id='{port_id}']/description"
+
+  Same applies to IP addresses, interface names, router names:
+    /bgp/neighbor[ip-address='10.0.0.2']/statistics/session-state
+    /router[router-name='Base']/bgp/neighbor[...]
+
+
+  RULE 2 — Compound list keys use tuples
+  ----------------------------------------
+  Some YANG lists have more than one key field.
+  pySROS represents compound keys as Python tuples.
+
+    # Single key list (log-id has only 'name'):
+    {"10": {"description": "Log ten"}}
+
+    # Compound key list (NTP server has 'ip-address' + 'router-instance'):
+    {("10.0.0.1", "Base"): {"prefer": Leaf(True)}}
+
+  How to discover compound keys:
+    1. Read back a known-good entry after configuring it via CLI
+    2. The dict key in the output shows the tuple structure:
+       {('10.0.0.1', 'Base'): Container({...})}
+
+
+  RULE 3 — Can't path into a leaf of a non-existent list entry
+  -------------------------------------------------------------
+  If a list entry doesn't exist yet, you cannot set() a leaf
+  inside it via a path — you must create the entry as a dict.
+
+    # WRONG — fails if the server entry doesn't exist yet
+    conn.candidate.set(".../server[ip-address='10.0.0.1']/prefer", True)
+
+    # CORRECT — create the entry with a dict at the list level
+    conn.candidate.set(".../server", {("10.0.0.1", "Base"): {"prefer": Leaf(True)}})
+
+  Once the entry exists in running config, path-based set() works fine.
+
+
+  RULE 4 — Explore before you assume
+  ------------------------------------
+  SR OS YANG trees are sparse — not all fields are present
+  at the top level. Always use .keys() before accessing fields.
+
+    ntp = conn.running.get("/nokia-conf:configure/system/time/ntp")
+    print(ntp.keys())
+    # → dict_keys(['admin-state'])   ← 'server' is missing if list is empty!
+
+  If a key is missing, the list may be empty (not an error).
+  An empty list returns {} — check with:
+    servers = conn.running.get(".../ntp/server")
+    # → {}   ← empty dict, not an error
+
 =======================================================
