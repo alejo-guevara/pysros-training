@@ -1,5 +1,5 @@
 """
-05_bulk_config.py
+04_bulk_config.py
 ==================
 REAL-WORLD script — bulk config change across multiple SR OS nodes.
 
@@ -28,12 +28,11 @@ from pysros.management import connect
 NODES = [
     {"host": "clab-pysros-lab-pe1", "name": "PE1"},
     {"host": "clab-pysros-lab-pe2", "name": "PE2"},
-    {"host": "clab-pysros-lab-pe2",  "name": "P1"},
 ]
 
 # Shared credentials (use SSH keys / vault in production)
 USERNAME = "admin"
-PASSWORD = "admin"
+PASSWORD = "NokiaSros1!"  # Update if you changed the default password in your lab
 
 # ── NTP config ──────────────────────────────────────────────────────────────
 NTP_SERVER_IP = "10.0.0.1"
@@ -41,23 +40,26 @@ NTP_SERVER_IP = "10.0.0.1"
 
 def apply_ntp_server(conn, ntp_ip):
     """Add preferred NTP server to the node's config."""
-    path = (
-        f"/nokia-conf:configure/system/time/ntp"
-        f"/server[ip-address={ntp_ip}]/prefer"
+    from pysros.wrappers import Leaf
+
+    # Ensure NTP is enabled
+    conn.candidate.set(
+        "/nokia-conf:configure/system/time/ntp/admin-state",
+        "enable"
     )
-    conn.candidate.set(path, True)
+    # NTP server list has a compound key: (ip-address, router-instance)
+    conn.candidate.set(
+        "/nokia-conf:configure/system/time/ntp/server",
+        {(ntp_ip, "Base"): {"prefer": Leaf(True)}}
+    )
     conn.candidate.commit()
 
 
 def check_ntp_configured(conn, ntp_ip):
     """Verify NTP server is present in running config."""
-    path = (
-        f"/nokia-conf:configure/system/time/ntp"
-        f"/server[ip-address={ntp_ip}]/prefer"
-    )
     try:
-        result = conn.running.get(path)
-        return result.data is True
+        ntp = conn.running.get("/nokia-conf:configure/system/time/ntp")
+        return "server" in ntp and (ntp_ip, "Base") in ntp["server"]
     except Exception:
         return False
 

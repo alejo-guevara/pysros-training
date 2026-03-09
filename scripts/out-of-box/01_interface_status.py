@@ -21,7 +21,7 @@ from pysros.management import connect
 # Update host to match your Containerlab node name or IP
 HOST     = "clab-pysros-lab-pe1"
 USERNAME = "admin"
-PASSWORD = "admin"
+PASSWORD = "NokiaSros1!"
 
 # YANG path for port state
 PORT_STATE_PATH = "/nokia-state:state/port"

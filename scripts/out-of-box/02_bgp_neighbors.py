@@ -20,7 +20,7 @@ from pysros.management import connect
 # ── Connection details ──────────────────────────────────────────────────────
 HOST     = "clab-pysros-lab-pe1"
 USERNAME = "admin"
-PASSWORD = "admin"
+PASSWORD = "NokiaSros1!"
 
 # YANG path for BGP neighbor state
 # Note: router-name=Base targets the default/Base routing instance
@@ -63,13 +63,13 @@ def print_table(rows):
     if not rows:
         print("  No BGP neighbors found (BGP may not be configured).")
     else:
-        for ip, state, peer_as, last_event in rows:
+        for ip, state, last_state, peer_as in rows:
             # Highlight non-established sessions
-            flag = " ← CHECK" if oper_state != "established" else ""
-            print(f"{ip:<22} {oper_state:<18} {peer_as:<12} {last_event:<20}{flag}")
+            flag = " ← CHECK" if state.lower() != "established" else ""
+            print(f"{ip:<22} {state:<18} {last_state:<14} {peer_as:<12}{flag}")
 
     print(separator)
-    established = sum(1 for _, s, _, _ in rows if s.lower() == "established")
+    established = sum(1 for _, s, __, ___ in rows if s.lower() == "established")
     print(f"Total: {len(rows)} neighbors  |  Established: {established}")
 
 

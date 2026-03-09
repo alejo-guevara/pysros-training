@@ -20,20 +20,18 @@ from pysros.management import connect
 # ── Connection details ──────────────────────────────────────────────────────
 HOST     = "clab-pysros-lab-pe1"
 USERNAME = "admin"
-PASSWORD = "admin"
+PASSWORD = "NokiaSros1!"  # Update if you changed the default password in your lab
 
 # ── Ports to configure: {port_id: description} ─────────────────────────────
 PORT_DESCRIPTIONS = {
-    "1/1/c1/1": "Uplink to Core-01",
-    "1/1/2": "Peering Link - AS65001",
-    "1/1/3": "Customer - ACME Corp",
+    "1/1/c1/1": "Link to PE2",
 }
 
 
 def set_port_description(conn, port_id, description):
     """Set the description on a single port via candidate config."""
     path = (
-        f"/nokia-conf:configure/port[port-id={port_id}]"
+        f"/nokia-conf:configure/port[port-id='{port_id}']"
         f"/description"
     )
     conn.candidate.set(path, description)
@@ -76,7 +74,7 @@ def main():
         hostkey_verify=False
     )
     for port_id in PORT_DESCRIPTIONS:
-        path = f"/nokia-conf:configure/port[port-id={port_id}]/description"
+        path = f"/nokia-conf:configure/port[port-id='{port_id}']/description"
         try:
             result = conn.running.get(path)
             print(f"  {port_id}: '{result.data}'")
