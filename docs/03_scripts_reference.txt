@@ -346,3 +346,33 @@ if __name__ == "__main__":
         peer_as = "N/A"   # normal for iBGP neighbors
 
 =======================================================
+
+  RULE 7 -- Admin state is in the config tree, not the state tree
+  ---------------------------------------------------------------
+  The state tree (/nokia-state:...) contains operational data only.
+  Administrative intent (admin-state, descriptions, etc.) lives in
+  the config tree (/nokia-conf:configure/...).
+
+  To show both in one table, get() from both trees separately:
+
+    conf_ports  = conn.running.get("/nokia-conf:configure/port")
+    state_ports = conn.running.get("/nokia-state:state/port")
+
+    admin = str(conf_ports[port_id]["admin-state"].data)  # config tree
+    oper  = str(state_ports[port_id]["oper-state"].data)  # state tree
+
+
+  RULE 8 -- Filter ports by ID structure, not by name pattern
+  ------------------------------------------------------------
+  The state tree returns ALL port objects: connectors (1/1/c1),
+  breakout Ethernet ports (1/1/c1/1), and management ports (A/1).
+  Filter by counting slash-separated parts -- no regex needed:
+
+    parts = port_str.split("/")
+    if len(parts) != 4:
+        continue   # skip connectors (3 parts) and mgmt ports (2 parts)
+
+  Port ID structure:
+    1/1/c1     -> 3 parts -> connector (physical cage, not usable)
+    1/1/c1/1   -> 4 parts -> breakout Ethernet port (what you want)
+    A/1        -> 2 parts -> management port

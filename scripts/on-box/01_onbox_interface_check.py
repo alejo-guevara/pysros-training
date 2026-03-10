@@ -1,60 +1,66 @@
 """
 01_onbox_interface_check.py
 ============================
-ON-BOX script -- deploy to SR OS and run with: pyexec /cf3:/scripts/interface_check
+ON-BOX script -- deploy to SR OS and run with: pyexec "interface_check"
 
 What it does:
-  Same interface status check as Script 01 but runs *inside* SR OS.
-  Uses connect() with no arguments -- pySROS handles the local connection.
+  Interface status check running *inside* SR OS.
+  Shows only breakout Ethernet ports (1/1/cX/Y) -- skips connectors
+  and management ports. Admin state comes from config tree; oper state
+  from state tree.
 
-How to deploy to Containerlab SR OS node:
+How to deploy:
   scp 01_onbox_interface_check.py admin@clab-pysros-lab-pe1:/cf3:/scripts/interface_check
 
 How to run on SR OS (MD-CLI):
-  [/]
   A:admin@pe1# tools perform python-script reload "interface_check"
   A:admin@pe1# pyexec "interface_check"
-
-Requirements:
-  pySROS is pre-installed on SR OS 21.10+
 """
 
 from pysros.management import connect
 from pysros.pprint import Table
 
 
-PORT_STATE_PATH = "/nokia-state:state/port"
-
-
-def get_interface_status(conn):
-    """Return a list of (port_id, admin_state, oper_state) tuples."""
-    ports = conn.running.get(PORT_STATE_PATH)
-    results = []
-    for port_id, port_data in ports.items():
-        admin = port_data.get("admin-state", None)
-        oper  = port_data.get("oper-state",  None)
-        results.append((
-            str(port_id),
-            admin.data if admin else "n/a",
-            oper.data  if oper  else "n/a",
-        ))
-    return sorted(results)
-
-
 def main():
     conn = connect()
 
-    rows = get_interface_status(conn)
+    # Admin state lives in config tree; oper state in state tree
+    conf_ports  = conn.running.get("/nokia-conf:configure/port")
+    state_ports = conn.running.get("/nokia-state:state/port")
 
-    # Column format: (width, "Heading") -- width MUST come first
+    rows = []
+    for port_id in sorted(state_ports.keys()):
+        port_str = str(port_id)
+
+        # Only show breakout Ethernet ports -- skip connectors and mgmt
+        # Breakout ports have format 1/1/cX/Y (four slash-separated parts)
+        parts = port_str.split("/")
+        if len(parts) != 4:
+            continue
+
+        # Admin state from config tree
+        if port_str in conf_ports.keys():
+            try:
+                admin = str(conf_ports[port_id]["admin-state"].data)
+            except KeyError:
+                admin = "n/a"
+        else:
+            admin = "n/a"
+
+        # Oper state from state tree
+        try:
+            oper = str(state_ports[port_id]["oper-state"].data)
+        except KeyError:
+            oper = "n/a"
+
+        rows.append((port_str, admin, oper))
+
     cols = [
         (18, "Port"),
         (14, "Admin State"),
         (14, "Oper State"),
     ]
     table = Table("Interface Status", columns=cols)
-
-    # Build rows list, pass to table.print() in one call (Rule 5)
     table.print(rows)
 
     conn.disconnect()
