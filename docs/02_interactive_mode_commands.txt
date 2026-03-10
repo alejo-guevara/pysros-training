@@ -17,7 +17,7 @@ python3
 
 from pysros.management import connect
 
-conn = connect(host="clab-srexperts-pe1",
+conn = connect(host="clab-pysros-lab-pe1",
                username="admin",
                password="admin",
                hostkey_verify=False)
@@ -43,8 +43,14 @@ print(name)
 # Get all neighbors into a variable
 neighbors = conn.running.get("/nokia-state:state/router[router-name=Base]/bgp/neighbor")
 
+# ALWAYS check keys first -- the key is the peer address from your BGP config
+# (the loopback, not the link IP, if you used local-address)
+for k in neighbors.keys():
+    print(k)
+
+# Then index by the actual key you saw
 # Index by IP to get one specific neighbor
-n = neighbors["192.168.1.1"]
+n = neighbors["10.0.0.2"]
 
 # Check the top-level keys first
 for key in n.keys():
@@ -69,7 +75,7 @@ for key in n["statistics"].keys():
 # (quotes around values in [key=value] are required!)
 conn.running.get(
     '/nokia-state:state/router[router-name="Base"]'
-    '/bgp/neighbor[ip-address="192.168.1.1"]'
+    '/bgp/neighbor[ip-address="10.0.0.2"]'
     '/statistics/session-state'
 )
 

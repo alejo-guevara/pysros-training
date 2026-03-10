@@ -17,7 +17,7 @@ neighbors = conn.running.get(
 )
 
 # --- Approach 1: index by IP, drill into sub-containers ---
-n = neighbors["192.168.1.1"]
+n = neighbors["10.0.0.2"]
 
 # Check top-level keys first:
 for key in n.keys():
@@ -40,7 +40,7 @@ for key in n["statistics"].keys():
 
 conn.running.get(
     '/nokia-state:state/router[router-name="Base"]'
-    '/bgp/neighbor[ip-address="192.168.1.1"]'
+    '/bgp/neighbor[ip-address="10.0.0.2"]'
     '/statistics/session-state'
 )
 
