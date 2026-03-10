@@ -25,13 +25,13 @@ def main():
 
     system_name = conn.running.get(
         "/nokia-conf:configure/system/name"
-    )
+    ).data    # .data to get the string value from the Leaf
 
     path = "/nokia-state:state/router[router-name='Base']/bgp/neighbor"
     neighbors = conn.running.get(path)
 
     if not neighbors:
-        print(f"[{system_name}] No BGP neighbors configured.")
+        print("[" + system_name + "] No BGP neighbors configured.")
         sys.exit(0)
 
     cols = [
@@ -40,37 +40,38 @@ def main():
         (14, "State"),
         (8,  "Health"),
     ]
-    table = Table(f"BGP Health Check — {system_name}", columns=cols)
+    table = Table("BGP Health Check -- " + system_name, columns=cols)
 
+    rows = []
     issues = []
 
     for peer_ip, data in neighbors.items():
         try:
-            peer_as = str(data["peer-as"])
+            peer_as = str(data["peer-as"].data)
         except KeyError:
             peer_as = "N/A"
 
         try:
-            state = str(data["statistics"]["session-state"])
+            state = str(data["statistics"]["session-state"].data)
         except KeyError:
             state = "unknown"
 
-        health = "✓ OK" if state.lower() == "established" else "✗ DOWN"
+        health = "OK" if state.lower() == "established" else "DOWN"
 
         if state.lower() != "established":
             issues.append(str(peer_ip))
 
-        table.row([str(peer_ip), peer_as, state, health])
+        rows.append((str(peer_ip), peer_as, state, health))
 
-    table.print()
+    table.print(rows)
 
     if issues:
-        print(f"\n⚠️  {len(issues)} neighbor(s) not established:")
+        print("\n!! " + str(len(issues)) + " neighbor(s) not established:")
         for ip in issues:
-            print(f"   - {ip}")
+            print("   - " + ip)
         sys.exit(1)   # Non-zero exit triggers SR OS event actions
     else:
-        print("\n✓ All BGP neighbors established.")
+        print("\nAll BGP neighbors established.")
         sys.exit(0)
 
 

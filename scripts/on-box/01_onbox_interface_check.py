@@ -1,25 +1,26 @@
 """
-03_onbox_interface_check.py
+01_onbox_interface_check.py
 ============================
-ON-BOX script — deploy to SR OS and run with: pyexec /cf3:/scripts/03_onbox_interface_check.py
+ON-BOX script -- deploy to SR OS and run with: pyexec /cf3:/scripts/interface_check
 
 What it does:
   Same interface status check as Script 01 but runs *inside* SR OS.
-  Uses connect() with no arguments — pySROS handles the local connection.
+  Uses connect() with no arguments -- pySROS handles the local connection.
 
 How to deploy to Containerlab SR OS node:
-  scp 03_onbox_interface_check.py admin@clab-srexperts-pe1:/cf3:/scripts/
+  scp 01_onbox_interface_check.py admin@clab-pysros-lab-pe1:/cf3:/scripts/interface_check
 
 How to run on SR OS (MD-CLI):
   [/]
-  A:admin@pe1# pyexec /cf3:/scripts/03_onbox_interface_check.py
+  A:admin@pe1# tools perform python-script reload "interface_check"
+  A:admin@pe1# pyexec "interface_check"
 
 Requirements:
   pySROS is pre-installed on SR OS 21.10+
 """
 
 from pysros.management import connect
-from pysros.pprint import Table          # SR OS built-in pretty table
+from pysros.pprint import Table
 
 
 PORT_STATE_PATH = "/nokia-state:state/port"
@@ -41,23 +42,21 @@ def get_interface_status(conn):
 
 
 def main():
-    # ON-BOX: no host/credentials needed — connects to local SR OS instance
     conn = connect()
 
     rows = get_interface_status(conn)
 
-    # Use pySROS built-in Table for SR OS-style output
+    # Column format: (width, "Heading") -- width MUST come first
     cols = [
-        ("Port",       18),
-        ("Admin State", 14),
-        ("Oper State",  14),
+        (18, "Port"),
+        (14, "Admin State"),
+        (14, "Oper State"),
     ]
     table = Table("Interface Status", columns=cols)
 
-    for port_id, admin, oper in rows:
-        table.add(port_id, admin, oper)
+    # Build rows list, pass to table.print() in one call (Rule 5)
+    table.print(rows)
 
-    table.print()
     conn.disconnect()
 
 

@@ -309,4 +309,40 @@ if __name__ == "__main__":
     servers = conn.running.get(".../ntp/server")
     # → {}   ← empty dict, not an error
 
+
+  RULE 5 -- Table.print() takes a list of tuples -- no add() or row()
+  -------------------------------------------------------------------
+  The on-box pysros.pprint.Table class does NOT have add() or row()
+  methods. Build a list of tuples, then pass it to table.print() once.
+
+    # WRONG
+    table.add(col1, col2)     # AttributeError: Table has no add()
+    table.row([col1, col2])   # AttributeError: Table has no row()
+
+    # CORRECT
+    rows = []
+    for item in data:
+        rows.append((col1, col2))
+    table.print(rows)
+
+  Column definitions: list of (width, "Heading") tuples:
+    cols = [(20, "Peer Address"), (8, "Peer AS"), (14, "State")]
+    table = Table("My Title", columns=cols)
+    table.print(rows)
+
+
+  RULE 6 -- State tree may omit fields implied by config
+  -------------------------------------------------------
+  Some YANG leaves are absent from the state tree even when logically
+  present, because their value is implied by configuration.
+
+  Example: for iBGP neighbors, "peer-as" does not appear in the state
+  tree (implied by group type = internal). Always wrap state field
+  access in try/except KeyError and provide a sensible fallback.
+
+    try:
+        peer_as = str(data["peer-as"].data)
+    except KeyError:
+        peer_as = "N/A"   # normal for iBGP neighbors
+
 =======================================================
